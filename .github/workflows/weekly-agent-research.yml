@@ -1,0 +1,45 @@
+name: Weekly AI Agent Research
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '10 0 * * 1'
+
+permissions:
+  contents: write
+
+jobs:
+  weekly-research:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Ensure output directories exist
+        run: |
+          mkdir -p reports/latest
+
+      - name: Run Codex research task
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: .github/codex/prompts/weekly_research.md
+          output-file: codex-output.md
+          safety-strategy: drop-sudo
+          sandbox: workspace-write
+
+      - name: Commit and push report
+        run: |
+          git add reports codex-output.md AGENTS.md .github/codex/prompts/weekly_research.md .github/workflows/weekly-agent-research.yml
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          DATE_JST=$(TZ=Asia/Tokyo date +%F)
+          git commit -m "weekly AI agent research ${DATE_JST}"
+          git push
